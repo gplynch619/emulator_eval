@@ -16,7 +16,6 @@ param = SourceFileLoader(param_file, param_file).load_module()
 param_ranges = param.param_ranges
 
 additional_settings = param.additional_settings
-print(additional_settings)
 
 output_spectra = param.output_spectra
 ll_max = param.ll_max
@@ -106,15 +105,16 @@ if rank!=0:
     pr_cover_tau = 0.004
     precision_settings = {"start_sources_at_tau_c_over_tau_h": pr_cover_tau}
     M = Class.Class()
-    M.set(precision_settings)
+
     outfiles = {}
     for xx in output_spectra:
         outfiles[xx] = open(os.path.join(param.outdir_root,"{}_spectrum.dat.{}".format(xx, rank)), "ab")
     
     while True:
+        M.set(precision_settings)
         M.set(common_settings)
         
-        if not bool(additional_settings):
+        if len(additional_settings)>0:
             M.set(additional_settings)
         
         comm.send("waiting for a model", dest=0)

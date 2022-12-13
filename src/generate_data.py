@@ -15,6 +15,9 @@ param_file = sys.argv[1]
 param = SourceFileLoader(param_file, param_file).load_module()
 param_ranges = param.param_ranges
 
+additional_settings = param.additional_settings
+print(additional_settings)
+
 output_spectra = param.output_spectra
 ll_max = param.ll_max
 
@@ -111,8 +114,8 @@ if rank!=0:
     while True:
         M.set(common_settings)
         
-        if not bool(param.additional_settings):
-            M.set(param.additional_settings)
+        if not bool(additional_settings):
+            M.set(additional_settings)
         
         comm.send("waiting for a model", dest=0)
         model = comm.recv(source=0)

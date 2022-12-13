@@ -110,6 +110,10 @@ if rank!=0:
     
     while True:
         M.set(common_settings)
+        
+        if not bool(param.additional_settings):
+            M.set(param.additional_settings)
+        
         comm.send("waiting for a model", dest=0)
         model = comm.recv(source=0)
         if type(model).__name__ == 'str': #breaks when receiving "done" signal

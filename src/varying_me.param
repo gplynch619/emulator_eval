@@ -1,0 +1,21 @@
+
+#Ranges for the LHC of training data. For now we use ranges consistent
+#with 
+param_ranges={'omega_b'        :  [ 0.02032,    0.02452    ],
+              'omega_cdm'      :  [ 0.1057,     0.1329     ],
+              'H0'             :  [ 61.36,      73.96      ],
+              'ln10^{10}A_s'   :  [ 2.837,      3.257      ],
+              'n_s'            :  [ 0.9095,     1.0235     ],
+              'tau_reio'       :  [ 0.0276,     0.08449    ],
+              'varying_me'     :  [ 0.9073,     1.1083     ],
+              'varying_alpha'  :  [ 0.9689,     1.0349     ]}
+
+output_spectra = ['tt', 'te', 'ee']
+ll_max = 2500
+
+N = 50000
+
+additional_settings = {'varying_fundamental_constants': 'instantaneous',
+                       'varying_transition_redshift': 50.0}
+
+outdir_root = "/home/gplynch/projects/emulator_eval/data"

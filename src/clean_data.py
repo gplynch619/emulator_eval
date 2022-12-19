@@ -3,6 +3,7 @@ from importlib.machinery import SourceFileLoader
 import sys
 import os
 import itertools
+from generate_data import parse_input
 
 ######################################################
 #  Read parameters
@@ -10,14 +11,14 @@ import itertools
 param_file = sys.argv[1]
 spectrum_file_dir = sys.argv[2]
 param = SourceFileLoader(param_file, param_file).load_module()
-param_ranges = param.param_ranges
+param_ranges = parse_input(param.param_ranges)
 
 param_names = list(param_ranges.keys())
 
 output_spectra = param.output_spectra
 ll_max = param.ll_max
 
-modes = np.arange(2, ll_max)
+modes = np.arange(2, ll_max+1)
 print(modes)
 
 Nparams = len(param_ranges.keys())

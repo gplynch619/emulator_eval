@@ -2,6 +2,7 @@ import numpy as np
 from importlib.machinery import SourceFileLoader
 import sys
 import os
+import re
 import time
 from mpi4py import MPI
 from scipy.stats import qmc
@@ -13,22 +14,49 @@ import classy as Class
 ######################################################
 param_file = sys.argv[1]
 param = SourceFileLoader(param_file, param_file).load_module()
-param_ranges = param.param_ranges
 
+input_param_ranges = param.param_ranges
 additional_settings = param.additional_settings
-
 output_spectra = param.output_spectra
 ll_max = param.ll_max
 
+######################################################
+#  Input parsing
+######################################################
+
+def parse_input(input_ranges):
+
+    if("xe_control_points" in input_ranges.keys()):
+        modified_rec = True
+    else:
+        modified_rec = False
+
+    if modified_rec:
+        required_settings = ["xe_pert_type", "xe_control_pivots", "zmin_pert", "zmax_pert", "xe_pert_num"]
+        for setting in required_settings:
+            assert setting in additional_settings.keys(), "Specify {0} in additional settings before continuing".format(setting)
+        param_ranges = input_ranges.copy()
+        cp_lhc_range = param_ranges["xe_control_points"]
+        param_ranges.pop("xe_control_points")
+        for i in np.arange(1, additional_settings["xe_pert_num"]-1):
+            name = "q_{}".format(i)
+            param_ranges[name] = cp_lhc_range
+    else:
+        param_ranges = input_ranges
+    
+    return param_ranges
+
+param_ranges = parse_input(input_param_ranges)
+
 Nparams = len(param_ranges.keys())
+
 N = param.N
 
 ######################################################
 #  Create Latin Hypercube of samples
 ######################################################
 def create_models(N, ranges):
-    sampler = qmc.LatinHypercube(d=Nparams, seed=0) # seed for reproducibility 
-    #sampler = qmc.LatinHypercube(d=Nparams)
+    sampler = qmc.LatinHypercube(d=Nparams)
     samples = sampler.random(n=N)
     i=0
     for range in ranges.values():
@@ -45,6 +73,7 @@ def create_name_mapping(param_names):
         mapping[i] = name
         i+=1
     return mapping
+
 ######################################################
 #  Set up MPI
 ######################################################
@@ -123,8 +152,18 @@ if rank!=0:
         if type(model).__name__ == 'str': #breaks when receiving "done" signal
             break
         settings = {}
+        control_points = []
         for i,param in enumerate(model):
-            settings[name_mapping[i]] = model[i]
+            if("q_" in name_mapping[i]):
+                control_points.append(model[i])
+            else:
+                settings[name_mapping[i]] = model[i]
+        if len(control_points)>0:
+            control_points = np.insert(control_points, 0, 0.0)
+            control_points = np.append(control_points, 0.0)
+            str_ctrl = [str(c) for c in control_points]
+            settings["xe_control_points"] = ",".join(str_ctrl)
+
         M.set(settings)
         try:
             M.compute()

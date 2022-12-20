@@ -121,6 +121,8 @@ if rank==0:
             time.sleep(pause)
         else:
             time.sleep(short_pause)
+        if(idx%1000==0):
+            print("{} have been sent".format(idx))
 
     for i in np.arange(1, size):
         comm.send("done", dest=i)
@@ -171,6 +173,8 @@ if rank!=0:
                 spectrum = M.lensed_cl(ll_max)[xx][2:]
                 out_array = np.hstack((model, spectrum))
                 np.savetxt(outfiles[xx], [out_array])
+            M.struct_cleanup()
+            M.empty()
         except Class.CosmoComputationError as failure_message:
             print("Model {} failed ".format(model))
             print(str(failure_message)+'\n')

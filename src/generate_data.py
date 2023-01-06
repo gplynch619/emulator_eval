@@ -2,12 +2,13 @@ import numpy as np
 from importlib.machinery import SourceFileLoader
 import sys
 import os
-import re
+import psutil
+import subprocess
+import pickle
 import time
 from mpi4py import MPI
 from scipy.stats import qmc
 import itertools
-import classy as Class
 
 ######################################################
 #  Read parameters
@@ -52,6 +53,7 @@ Nparams = len(param_ranges.keys())
 
 N = param.N
 
+
 ######################################################
 #  Create Latin Hypercube of samples
 ######################################################
@@ -93,7 +95,10 @@ short_pause = 1e-4
 ######################################################
 #  Compute
 ######################################################
-
+tmp_dir = 'tmp'
+if rank==0:
+    if not os.path.exists(tmp_dir): 
+        os.mkdir(tmp_dir)
 
 if rank==0:
     name_mapping = create_name_mapping(param_ranges.keys())
@@ -128,6 +133,7 @@ if rank==0:
         comm.send("done", dest=i)
 
 if rank!=0:
+    settings = {}
     common_settings = {'output' : 'tCl,pCl,lCl',
                    'thermodynamics_verbose': 0,
                    'input_verbose': 0,
@@ -136,58 +142,62 @@ if rank!=0:
                   }
     pr_cover_tau = 0.004
     precision_settings = {"start_sources_at_tau_c_over_tau_h": pr_cover_tau}
-    M = Class.Class()
 
     outfiles = {}
     for xx in output_spectra:
-        outfiles[xx] = open(os.path.join(param.outdir_root,"{}_spectrum.dat.{}".format(xx, rank)), "ab")
+        outfiles[xx] = os.path.join(param.outdir_root,"{}_spectrum.dat.{}".format(xx, rank))
+
+    settings.update(common_settings)
+    settings.update(precision_settings)
     
     while True:
-        M.set(precision_settings)
-        M.set(common_settings)
-        
         if len(additional_settings)>0:
-            M.set(additional_settings)
+            settings.update(additional_settings)
         
         comm.send("waiting for a model", dest=0)
         model = comm.recv(source=0)
         if type(model).__name__ == 'str': #breaks when receiving "done" signal
             break
-        settings = {}
+        cosmo_settings = {}
         control_points = []
         for i,param in enumerate(model):
             if("q_" in name_mapping[i]):
                 control_points.append(model[i])
             else:
-                settings[name_mapping[i]] = model[i]
+                cosmo_settings[name_mapping[i]] = model[i]
         if len(control_points)>0:
             control_points = np.insert(control_points, 0, 0.0)
             control_points = np.append(control_points, 0.0)
             str_ctrl = [str(c) for c in control_points]
-            settings["xe_control_points"] = ",".join(str_ctrl)
+            cosmo_settings["xe_control_points"] = ",".join(str_ctrl)
 
-        M.set(settings)
-        try:
-            M.compute()
-            for xx in output_spectra:
-                spectrum = M.lensed_cl(ll_max)[xx][2:]
-                out_array = np.hstack((model, spectrum))
-                np.savetxt(outfiles[xx], [out_array])
-            M.struct_cleanup()
-            M.empty()
-        except Class.CosmoComputationError as failure_message:
-            print("Model {} failed ".format(model))
-            print(str(failure_message)+'\n')
-            M.struct_cleanup()
-            M.empty() 
-        except Class.CosmoSevereError as critical_message:
-            print("Something went wrong when calling CLASS" + str(critical_message))
-            M.struct_cleanup()
-            M.empty()
-    
-    for f in outfiles.values():
-        f.close()
+        settings.update(cosmo_settings)
+        settings_dict_filename = os.path.join(tmp_dir, "settings_dict_rank_{}.pkl".format(rank))
+        
+        with open(settings_dict_filename, 'wb') as f:
+            pickle.dump(settings, f)
+        
+        outfiles_dict_filename = os.path.join(tmp_dir,"outfiles_rank_{}.pkl".format(rank))
+        with open(outfiles_dict_filename, 'wb') as f:
+            pickle.dump(outfiles, f)
+
+        models_filename = os.path.join(tmp_dir,"model_rank_{}.pkl".format(rank))
+        with open(models_filename, 'wb') as f:
+            pickle.dump(model, f)
+
+        subprocess.call(["python", "src/compute_spectrum.py", settings_dict_filename, models_filename, outfiles_dict_filename])
+
+        #with open("log_{}.txt".format(rank), "a") as f:
+        #    process = psutil.Process(os.getpid())
+        #    f.write("Total mem used: {} KB\n".format(process.memory_info().rss/1000))
     #done
+
+comm.Barrier()
+
+if rank==0:
+    for filename in os.listdir(tmp_dir):
+        os.remove(os.path.join(tmp_dir, filename))
+    os.rmdir(tmp_dir)
 
 MPI.Finalize()
 sys.exit(0)

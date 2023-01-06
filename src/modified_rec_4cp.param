@@ -12,7 +12,7 @@ param_ranges={'omega_b'          :  [ 0.02032,    0.02452    ],
 output_spectra = ['tt', 'te', 'ee']
 ll_max = 2508
 
-N = 100
+N = 50000
 
 additional_settings = {'l_max_scalars': ll_max,
                        'xe_pert_type': 'control',
@@ -21,4 +21,4 @@ additional_settings = {'l_max_scalars': ll_max,
                        'zmax_pert': 1354.6667,
                        'xe_control_pivots': "686.3333,820.0000,953.6667,1087.3333,1221.0000,1354.6667"}
 
-outdir_root = "/Users/gabe/projects/emulators/data/modrec_4cp"
+outdir_root = "/Users/gabe/projects/emulators/data/debug"

@@ -1,4 +1,3 @@
-
 #Ranges for the LHC of training data. For now we use ranges consistent
 #with 
 param_ranges={'omega_b'        :  [ 0.02032,    0.02452    ],
@@ -18,4 +17,4 @@ N = 50000
 additional_settings = {'varying_fundamental_constants': 'instantaneous',
                        'varying_transition_redshift': 50.0}
 
-outdir_root = "/home/gplynch/projects/emulator_eval/data"
+outdir_root = "/Users/gabe/projects/emulators/data/debug"
